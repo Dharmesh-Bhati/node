@@ -74,14 +74,14 @@ RUNTIME_FUNCTION(Runtime_Call) {
   HandleScope scope(isolate);
   DCHECK_LE(2, args.length());
   int const argc = args.length() - 2;
-  Handle<Object> target = args.at(0);
-  Handle<Object> receiver = args.at(1);
-  base::ScopedVector<Handle<Object>> argv(argc);
+  DirectHandle<Object> target = args.at(0);
+  DirectHandle<Object> receiver = args.at(1);
+  DirectHandleVector<Object> arguments(isolate, argc);
   for (int i = 0; i < argc; ++i) {
-    argv[i] = args.at(2 + i);
+    arguments[i] = args.at(2 + i);
   }
-  RETURN_RESULT_OR_FAILURE(
-      isolate, Execution::Call(isolate, target, receiver, argc, argv.begin()));
+  RETURN_RESULT_OR_FAILURE(isolate, Execution::Call(isolate, target, receiver,
+                                                    base::VectorOf(arguments)));
 }
 
 

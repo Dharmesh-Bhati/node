@@ -34,8 +34,8 @@ class JSDisplayNames
   // locales and options.
   static MaybeHandle<JSDisplayNames> New(Isolate* isolate,
                                          DirectHandle<Map> map,
-                                         Handle<Object> locales,
-                                         Handle<Object> options);
+                                         DirectHandle<Object> locales,
+                                         DirectHandle<Object> options);
 
   static Handle<JSObject> ResolvedOptions(
       Isolate* isolate, DirectHandle<JSDisplayNames> format_holder);
@@ -81,13 +81,13 @@ class JSDisplayNames
   // Bit positions in |flags|.
   DEFINE_TORQUE_GENERATED_JS_DISPLAY_NAMES_FLAGS()
 
-  static_assert(Style::kLong <= StyleBits::kMax);
-  static_assert(Style::kShort <= StyleBits::kMax);
-  static_assert(Style::kNarrow <= StyleBits::kMax);
-  static_assert(Fallback::kCode <= FallbackBit::kMax);
-  static_assert(Fallback::kNone <= FallbackBit::kMax);
-  static_assert(LanguageDisplay::kDialect <= LanguageDisplayBit::kMax);
-  static_assert(LanguageDisplay::kStandard <= LanguageDisplayBit::kMax);
+  static_assert(StyleBits::is_valid(Style::kLong));
+  static_assert(StyleBits::is_valid(Style::kShort));
+  static_assert(StyleBits::is_valid(Style::kNarrow));
+  static_assert(FallbackBit::is_valid(Fallback::kCode));
+  static_assert(FallbackBit::is_valid(Fallback::kNone));
+  static_assert(LanguageDisplayBit::is_valid(LanguageDisplay::kDialect));
+  static_assert(LanguageDisplayBit::is_valid(LanguageDisplay::kStandard));
 
   DECL_ACCESSORS(internal, Tagged<Managed<DisplayNamesInternal>>)
 

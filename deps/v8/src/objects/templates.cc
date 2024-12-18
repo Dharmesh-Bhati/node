@@ -54,15 +54,8 @@ Handle<SharedFunctionInfo> FunctionTemplateInfo::GetOrCreateSharedFunctionInfo(
   Handle<SharedFunctionInfo> sfi =
       isolate->factory()->NewSharedFunctionInfoForApiFunction(name_string, info,
                                                               function_kind);
-  {
-    DisallowGarbageCollection no_gc;
-    Tagged<SharedFunctionInfo> raw_sfi = *sfi;
-    Tagged<FunctionTemplateInfo> raw_template = *info;
-    raw_sfi->set_length(raw_template->length());
-    raw_sfi->DontAdaptArguments();
-    DCHECK(raw_sfi->IsApiFunction());
-    raw_template->set_shared_function_info(raw_sfi);
-  }
+  DCHECK(sfi->IsApiFunction());
+  info->set_shared_function_info(*sfi);
   return sfi;
 }
 
@@ -76,7 +69,7 @@ bool FunctionTemplateInfo::IsTemplateFor(Tagged<Map> map) const {
   // There is a constraint on the object; check.
   if (!IsJSObjectMap(map)) return false;
 
-  if (v8_flags.embedder_instance_types) {
+  if (v8_flags.experimental_embedder_instance_types) {
     DCHECK_IMPLIES(allowed_receiver_instance_type_range_start() == 0,
                    allowed_receiver_instance_type_range_end() == 0);
     if (base::IsInRange(map->instance_type(),
@@ -216,7 +209,7 @@ Handle<JSObject> CreateSlowJSObjectWithProperties(
     properties = PropertyDictionary::Add(
         isolate, Cast<PropertyDictionary>(properties),
         Cast<String>(handle(property_names->get(i), isolate)),
-        Utils::OpenHandle(*property_value), PropertyDetails::Empty());
+        Utils::OpenDirectHandle(*property_value), PropertyDetails::Empty());
   }
   object->set_raw_properties_or_hash(*properties);
   return object;
@@ -306,7 +299,7 @@ Handle<JSObject> DictionaryTemplateInfo::NewInstance(
 
   // General case: We either don't have a cached map, or it is unusuable for the
   // values provided.
-  Handle<Map> current_map = isolate->factory()->ObjectLiteralMapFromCache(
+  DirectHandle<Map> current_map = isolate->factory()->ObjectLiteralMapFromCache(
       context, num_properties_set);
   Handle<JSObject> object = isolate->factory()->NewJSObjectFromMap(current_map);
   int current_property_index = 0;

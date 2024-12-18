@@ -10,6 +10,7 @@
 #include "src/debug/debug-scope-iterator.h"
 #include "src/debug/debug.h"
 #include "src/execution/frames-inl.h"
+#include "src/execution/frames.h"
 #include "src/execution/isolate.h"
 
 #if V8_ENABLE_WEBASSEMBLY
@@ -102,12 +103,12 @@ v8::MaybeLocal<v8::Value> DebugStackTraceIterator::GetReceiver() const {
     int slot_index = context->scope_info()->ContextSlotIndex(
         ReadOnlyRoots(isolate_).this_string_handle());
     if (slot_index < 0) return v8::MaybeLocal<v8::Value>();
-    Handle<Object> value = handle(context->get(slot_index), isolate_);
+    DirectHandle<Object> value(context->get(slot_index), isolate_);
     if (IsTheHole(*value, isolate_)) return v8::MaybeLocal<v8::Value>();
     return Utils::ToLocal(value);
   }
 
-  Handle<Object> value = frame_inspector_->GetReceiver();
+  DirectHandle<Object> value = frame_inspector_->GetReceiver();
   if (value.is_null() || (IsSmi(*value) || !IsTheHole(*value, isolate_))) {
     return Utils::ToLocal(value);
   }
@@ -122,7 +123,7 @@ v8::Local<v8::Value> DebugStackTraceIterator::GetReturnValue() const {
   }
 #endif  // V8_ENABLE_WEBASSEMBLY
   CHECK_NOT_NULL(iterator_.frame());
-  bool is_optimized = iterator_.frame()->is_optimized();
+  bool is_optimized = iterator_.frame()->is_optimized_js();
   if (is_optimized || !is_top_frame_ ||
       !isolate_->debug()->IsBreakAtReturn(iterator_.javascript_frame())) {
     return v8::Local<v8::Value>();
@@ -236,14 +237,13 @@ bool DebugStackTraceIterator::CanBeRestarted() const {
 void DebugStackTraceIterator::UpdateInlineFrameIndexAndResumableFnOnStack() {
   CHECK(!iterator_.done());
 
-  std::vector<FrameSummary> frames;
-  iterator_.frame()->Summarize(&frames);
-  inlined_frame_index_ = static_cast<int>(frames.size());
+  FrameSummaries summaries = iterator_.frame()->Summarize();
+  inlined_frame_index_ = static_cast<int>(summaries.size());
 
   if (resumable_fn_on_stack_) return;
 
   StackFrame* frame = iterator_.frame();
-  if (!frame->is_java_script()) return;
+  if (!frame->is_javascript()) return;
 
   std::vector<Handle<SharedFunctionInfo>> shareds;
   JavaScriptFrame::cast(frame)->GetFunctions(&shareds);

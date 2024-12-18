@@ -17,6 +17,8 @@
 namespace v8 {
 namespace internal {
 
+#include "src/codegen/define-code-stub-assembler-macros.inc"
+
 namespace {
 
 using Label = compiler::CodeAssemblerLabel;
@@ -40,9 +42,9 @@ template <typename... Args>
 MaybeHandle<Object> Call(Isolate* isolate, Handle<JSFunction> function,
                          Args... args) {
   const int nof_args = sizeof...(Args);
-  Handle<Object> call_args[] = {args...};
+  DirectHandle<Object> call_args[] = {args...};
   Handle<Object> receiver = isolate->factory()->undefined_value();
-  return Execution::Call(isolate, function, receiver, nof_args, call_args);
+  return Execution::Call(isolate, function, receiver, {call_args, nof_args});
 }
 
 void CheckDescriptorArrayLookups(Isolate* isolate, Handle<Map> map,
@@ -191,7 +193,7 @@ Handle<JSFunction> CreateCsaTransitionArrayLookup(Isolate* isolate) {
                                       TransitionArray::kEntryKeyIndex) *
                                      kTaggedSize;
       TNode<Map> transition_map = m.CAST(m.GetHeapObjectAssumeWeak(
-          m.LoadArrayElement(transitions, WeakFixedArray::kHeaderSize,
+          m.LoadArrayElement(transitions, OFFSET_OF_DATA_START(WeakFixedArray),
                              var_name_index.value(), kKeyToTargetOffset)));
       m.Return(transition_map);
     }
@@ -336,7 +338,7 @@ TEST(TransitionArrayHashCollisionMassive) {
   }
 
   // Create transitions for each name.
-  Handle<Map> root_map = Map::Create(isolate, 0);
+  DirectHandle<Map> root_map = Map::Create(isolate, 0);
 
   std::vector<Handle<Map>> maps;
 
@@ -394,7 +396,7 @@ TEST(TransitionArrayHashCollision) {
   }
 
   // Create transitions for each name.
-  Handle<Map> root_map = Map::Create(isolate, 0);
+  DirectHandle<Map> root_map = Map::Create(isolate, 0);
 
   std::vector<Handle<Map>> maps;
 
@@ -420,6 +422,8 @@ TEST(TransitionArrayHashCollision) {
   transition_array->Sort();
   CheckTransitionArrayLookups(isolate, transition_array, maps, csa_lookup);
 }
+
+#include "src/codegen/undef-code-stub-assembler-macros.inc"
 
 }  // namespace internal
 }  // namespace v8

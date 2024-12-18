@@ -64,7 +64,8 @@ bool ParseProgram(ParseInfo* info, DirectHandle<Script> script,
   return ParseProgram(info, script, kNullMaybeHandle, isolate, mode);
 }
 
-bool ParseFunction(ParseInfo* info, Handle<SharedFunctionInfo> shared_info,
+bool ParseFunction(ParseInfo* info,
+                   DirectHandle<SharedFunctionInfo> shared_info,
                    Isolate* isolate, ReportStatisticsMode mode) {
   DCHECK(!info->flags().is_toplevel());
   DCHECK(!shared_info.is_null());
@@ -75,8 +76,8 @@ bool ParseFunction(ParseInfo* info, Handle<SharedFunctionInfo> shared_info,
   // Create a character stream for the parser.
   DirectHandle<Script> script(Cast<Script>(shared_info->script()), isolate);
   Handle<String> source(Cast<String>(script->source()), isolate);
-  int start_pos = shared_info->StartPosition();
-  int end_pos = shared_info->EndPosition();
+  uint32_t start_pos = shared_info->StartPosition();
+  uint32_t end_pos = shared_info->EndPosition();
   if (end_pos > source->length()) {
     isolate->PushStackTraceAndDie(reinterpret_cast<void*>(script->ptr()),
                                   reinterpret_cast<void*>(source->ptr()));
@@ -94,7 +95,7 @@ bool ParseFunction(ParseInfo* info, Handle<SharedFunctionInfo> shared_info,
   return info->literal() != nullptr;
 }
 
-bool ParseAny(ParseInfo* info, Handle<SharedFunctionInfo> shared_info,
+bool ParseAny(ParseInfo* info, DirectHandle<SharedFunctionInfo> shared_info,
               Isolate* isolate, ReportStatisticsMode mode) {
   DCHECK(!shared_info.is_null());
   if (info->flags().is_toplevel()) {

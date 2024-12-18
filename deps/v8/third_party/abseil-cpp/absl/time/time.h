@@ -74,13 +74,19 @@
 // including 'windows.h' so we are picking the lesser of two evils here.
 struct timeval;
 #endif
+
+#include "absl/base/config.h"
+
+// For feature testing and determining which headers can be included.
+#if ABSL_INTERNAL_CPLUSPLUS_LANG >= 202002L
+#include <version>
+#endif
+
 #include <chrono>  // NOLINT(build/c++11)
-
-#ifdef __cpp_impl_three_way_comparison
-#include <compare>
-#endif  // __cpp_impl_three_way_comparison
-
 #include <cmath>
+#ifdef __cpp_lib_three_way_comparison
+#include <compare>
+#endif  // __cpp_lib_three_way_comparison
 #include <cstdint>
 #include <ctime>
 #include <limits>
@@ -91,11 +97,15 @@ struct timeval;
 #include <utility>
 
 #include "absl/base/attributes.h"
-#include "absl/base/config.h"
 #include "absl/base/macros.h"
 #include "absl/strings/string_view.h"
 #include "absl/time/civil_time.h"
 #include "absl/time/internal/cctz/include/cctz/time_zone.h"
+
+#if defined(__cpp_impl_three_way_comparison) && \
+    defined(__cpp_lib_three_way_comparison)
+#define ABSL_INTERNAL_TIME_HAS_THREE_WAY_COMPARISON 1
+#endif
 
 namespace absl {
 ABSL_NAMESPACE_BEGIN
@@ -138,7 +148,8 @@ using EnableIfFloat =
 // the result of subtracting one `absl::Time` from another. Durations behave
 // like unit-safe integers and they support all the natural integer-like
 // arithmetic operations. Arithmetic overflows and saturates at +/- infinity.
-// `Duration` should be passed by value rather than const reference.
+// `Duration` is trivially destructible and should be passed by value rather
+// than const reference.
 //
 // Factory functions `Nanoseconds()`, `Microseconds()`, `Milliseconds()`,
 // `Seconds()`, `Minutes()`, `Hours()` and `InfiniteDuration()` allow for
@@ -313,12 +324,12 @@ class Duration {
 
 // Relational Operators
 
-#ifdef __cpp_impl_three_way_comparison
+#ifdef ABSL_INTERNAL_TIME_HAS_THREE_WAY_COMPARISON
 
 ABSL_ATTRIBUTE_CONST_FUNCTION constexpr std::strong_ordering operator<=>(
     Duration lhs, Duration rhs);
 
-#endif  // __cpp_impl_three_way_comparison
+#endif  // ABSL_INTERNAL_TIME_HAS_THREE_WAY_COMPARISON
 
 ABSL_ATTRIBUTE_CONST_FUNCTION constexpr bool operator<(Duration lhs,
                                                        Duration rhs);
@@ -738,8 +749,9 @@ std::string UnparseFlag(Duration d);
 // are provided for naturally expressing time calculations. Instances are
 // created using `absl::Now()` and the `absl::From*()` factory functions that
 // accept the gamut of other time representations. Formatting and parsing
-// functions are provided for conversion to and from strings.  `absl::Time`
-// should be passed by value rather than const reference.
+// functions are provided for conversion to and from strings. `absl::Time` is
+// trivially destructible and should be passed by value rather than const
+// reference.
 //
 // `absl::Time` assumes there are 60 seconds in a minute, which means the
 // underlying time scales must be "smeared" to eliminate leap seconds.
@@ -853,9 +865,9 @@ class Time {
   friend constexpr Time time_internal::FromUnixDuration(Duration d);
   friend constexpr Duration time_internal::ToUnixDuration(Time t);
 
-#ifdef __cpp_impl_three_way_comparison
+#ifdef ABSL_INTERNAL_TIME_HAS_THREE_WAY_COMPARISON
   friend constexpr std::strong_ordering operator<=>(Time lhs, Time rhs);
-#endif  // __cpp_impl_three_way_comparison
+#endif  // ABSL_INTERNAL_TIME_HAS_THREE_WAY_COMPARISON
 
   friend constexpr bool operator<(Time lhs, Time rhs);
   friend constexpr bool operator==(Time lhs, Time rhs);
@@ -868,14 +880,14 @@ class Time {
 };
 
 // Relational Operators
-#ifdef __cpp_impl_three_way_comparison
+#ifdef ABSL_INTERNAL_TIME_HAS_THREE_WAY_COMPARISON
 
 ABSL_ATTRIBUTE_CONST_FUNCTION constexpr std::strong_ordering operator<=>(
     Time lhs, Time rhs) {
   return lhs.rep_ <=> rhs.rep_;
 }
 
-#endif  // __cpp_impl_three_way_comparison
+#endif  // ABSL_INTERNAL_TIME_HAS_THREE_WAY_COMPARISON
 
 ABSL_ATTRIBUTE_CONST_FUNCTION constexpr bool operator<(Time lhs, Time rhs) {
   return lhs.rep_ < rhs.rep_;
@@ -1752,8 +1764,7 @@ ABSL_ATTRIBUTE_CONST_FUNCTION constexpr bool operator<(Duration lhs,
              : time_internal::GetRepLo(lhs) < time_internal::GetRepLo(rhs);
 }
 
-
-#ifdef __cpp_impl_three_way_comparison
+#ifdef ABSL_INTERNAL_TIME_HAS_THREE_WAY_COMPARISON
 
 ABSL_ATTRIBUTE_CONST_FUNCTION constexpr std::strong_ordering operator<=>(
     Duration lhs, Duration rhs) {
@@ -1769,7 +1780,7 @@ ABSL_ATTRIBUTE_CONST_FUNCTION constexpr std::strong_ordering operator<=>(
              : lhs_lo <=> rhs_lo;
 }
 
-#endif  // __cpp_impl_three_way_comparison
+#endif  // ABSL_INTERNAL_TIME_HAS_THREE_WAY_COMPARISON
 
 ABSL_ATTRIBUTE_CONST_FUNCTION constexpr bool operator==(Duration lhs,
                                                         Duration rhs) {

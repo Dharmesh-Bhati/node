@@ -13,8 +13,6 @@
 #include "src/sandbox/external-entity-table.h"
 #include "src/utils/allocation.h"
 
-#ifdef V8_COMPRESS_POINTERS
-
 namespace v8 {
 namespace internal {
 
@@ -48,6 +46,8 @@ template <typename Entry, size_t size>
 void ExternalEntityTable<Entry, size>::Initialize() {
   Base::Initialize();
 
+  if (!ExternalEntityTable::kUseContiguousMemory) return;
+
   // Allocate the read-only segment of the table. This segment is always
   // located at offset 0, and contains the null entry (pointing at
   // kNullAddress) at index 0. It may later be temporarily marked read-write,
@@ -66,8 +66,10 @@ template <typename Entry, size_t size>
 void ExternalEntityTable<Entry, size>::TearDown() {
   DCHECK(this->is_initialized());
 
-  // Deallocate the (read-only) first segment.
-  this->vas_->FreePages(this->vas_->base(), kSegmentSize);
+  if (ExternalEntityTable::kUseContiguousMemory) {
+    // Deallocate the (read-only) first segment.
+    this->vas_->FreePages(this->vas_->base(), kSegmentSize);
+  }
 
   Base::TearDown();
 }
@@ -93,6 +95,7 @@ void ExternalEntityTable<Entry, size>::TearDownSpace(Space* space) {
 template <typename Entry, size_t size>
 void ExternalEntityTable<Entry, size>::AttachSpaceToReadOnlySegment(
     Space* space) {
+  CHECK(ExternalEntityTable::kUseContiguousMemory);
   DCHECK(this->is_initialized());
   DCHECK(space->BelongsTo(this));
 
@@ -162,15 +165,14 @@ uint32_t ExternalEntityTable<Entry, size>::AllocateEntry(Space* space) {
   DisallowGarbageCollection no_gc;
 
   FreelistHead freelist;
-  bool success = false;
-  while (!success) {
+  for (;;) {
     // This is essentially DCLP (see
     // https://preshing.com/20130930/double-checked-locking-is-fixed-in-cpp11/)
     // and so requires an acquire load as well as a release store in Grow() to
     // prevent reordering of memory accesses, which could for example cause one
     // thread to read a freelist entry before it has been properly initialized.
     freelist = space->freelist_head_.load(std::memory_order_acquire);
-    if (freelist.is_empty()) {
+    if (V8_UNLIKELY(freelist.is_empty())) {
       // Freelist is empty. Need to take the lock, then attempt to allocate a
       // new segment if no other thread has done it in the meantime.
       base::MutexGuard guard(&space->mutex_);
@@ -186,7 +188,9 @@ uint32_t ExternalEntityTable<Entry, size>::AllocateEntry(Space* space) {
       }
     }
 
-    success = TryAllocateEntryFromFreelist(space, freelist);
+    if (V8_LIKELY(TryAllocateEntryFromFreelist(space, freelist))) {
+      break;
+    }
   }
 
   uint32_t allocated_entry = freelist.next();
@@ -264,6 +268,8 @@ void ExternalEntityTable<Entry, size>::Extend(Space* space, Segment segment,
   space->mutex_.AssertHeld();
 
   space->segments_.insert(segment);
+  CHECK_IMPLIES(!ExternalEntityTable::kUseContiguousMemory,
+                segment.number() != 0);
   DCHECK_EQ(space->is_internal_read_only_space(), segment.number() == 0);
   DCHECK_EQ(space->is_internal_read_only_space(),
             segment.offset() == kInternalReadOnlySegmentOffset);
@@ -288,6 +294,13 @@ void ExternalEntityTable<Entry, size>::Extend(Space* space, Segment segment,
 
 template <typename Entry, size_t size>
 uint32_t ExternalEntityTable<Entry, size>::GenericSweep(Space* space) {
+  return GenericSweep(space, [](Entry&) {});
+}
+
+template <typename Entry, size_t size>
+template <typename Callback>
+uint32_t ExternalEntityTable<Entry, size>::GenericSweep(Space* space,
+                                                        Callback callback) {
   DCHECK(space->BelongsTo(this));
 
   // Lock the space. Technically this is not necessary since no other thread can
@@ -321,6 +334,7 @@ uint32_t ExternalEntityTable<Entry, size>::GenericSweep(Space* space) {
         current_freelist_head = it.index();
         current_freelist_length++;
       } else {
+        callback(*it);
         it->Unmark();
       }
     }
@@ -369,7 +383,5 @@ void ExternalEntityTable<Entry, size>::IterateEntriesIn(Space* space,
 
 }  // namespace internal
 }  // namespace v8
-
-#endif  // V8_COMPRESS_POINTERS
 
 #endif  // V8_SANDBOX_EXTERNAL_ENTITY_TABLE_INL_H_

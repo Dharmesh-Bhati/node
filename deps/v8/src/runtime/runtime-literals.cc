@@ -169,8 +169,7 @@ MaybeHandle<JSObject> JSObjectWalkVisitor<ContextObject>::StructureWalk(
     case SHARED_ARRAY_ELEMENTS: {
       DirectHandle<FixedArray> elements(
           Cast<FixedArray>(copy->elements(isolate)), isolate);
-      if (elements->map(isolate) ==
-          ReadOnlyRoots(isolate).fixed_cow_array_map()) {
+      if (elements->map() == ReadOnlyRoots(isolate).fixed_cow_array_map()) {
 #ifdef DEBUG
         for (int i = 0; i < elements->length(); i++) {
           DCHECK(!IsJSObject(elements->get(i)));
@@ -284,7 +283,8 @@ class AllocationSiteCreationContext : public AllocationSiteContext {
     DCHECK(!scope_site.is_null());
     return scope_site;
   }
-  void ExitScope(Handle<AllocationSite> scope_site, Handle<JSObject> object) {
+  void ExitScope(Handle<AllocationSite> scope_site,
+                 DirectHandle<JSObject> object) {
     if (object.is_null()) return;
     scope_site->set_boilerplate(*object, kReleaseStore);
     if (v8_flags.trace_creation_allocation_sites) {
@@ -426,7 +426,7 @@ Handle<JSObject> CreateObjectLiteral(
                                               NONE)
           .Check();
     } else {
-      Handle<String> name = Cast<String>(key);
+      DirectHandle<String> name = Cast<String>(key);
       DCHECK(!name->AsArrayIndex(&element_index));
       JSObject::SetOwnPropertyIgnoreAttributes(boilerplate, name, value, NONE)
           .Check();
@@ -459,7 +459,7 @@ Handle<JSObject> CreateArrayLiteral(
         Cast<FixedDoubleArray>(constant_elements_values));
   } else {
     DCHECK(IsSmiOrObjectElementsKind(constant_elements_kind));
-    const bool is_cow = (constant_elements_values->map(isolate) ==
+    const bool is_cow = (constant_elements_values->map() ==
                          ReadOnlyRoots(isolate).fixed_cow_array_map());
     if (is_cow) {
       copied_elements_values = constant_elements_values;

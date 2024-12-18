@@ -145,7 +145,7 @@ class TokensCompareOutput : public Comparator::Output {
 // never has terminating new line character.
 class LineEndsWrapper {
  public:
-  explicit LineEndsWrapper(Isolate* isolate, Handle<String> string)
+  explicit LineEndsWrapper(Isolate* isolate, DirectHandle<String> string)
       : ends_array_(String::CalculateLineEnds(isolate, string, false)),
         string_len_(string->length()) {}
   int length() {
@@ -987,15 +987,15 @@ void LiveEdit::PatchScript(Isolate* isolate, Handle<Script> script,
     isolate->debug()->DeoptimizeFunction(sfi);
     isolate->compilation_cache()->Remove(sfi);
     for (auto& js_function : data->js_functions) {
-#ifdef V8_ENABLE_LEAPTIERING
-      js_function->initialize_dispatch_handle(
-          isolate, new_sfi->internal_formal_parameter_count_with_receiver());
-#endif
-      js_function->set_shared(*new_sfi);
-      js_function->set_code(js_function->shared()->GetCode(isolate));
-
       js_function->set_raw_feedback_cell(
           *isolate->factory()->many_closures_cell());
+#ifdef V8_ENABLE_LEAPTIERING
+      js_function->AllocateDispatchHandle(
+          isolate, new_sfi->internal_formal_parameter_count_with_receiver(),
+          new_sfi->GetCode(isolate));
+#endif
+      js_function->set_shared(*new_sfi);
+
       if (!js_function->is_compiled(isolate)) continue;
       IsCompiledScope is_compiled_scope(
           js_function->shared()->is_compiled_scope(isolate));
@@ -1013,7 +1013,7 @@ void LiveEdit::PatchScript(Isolate* isolate, Handle<Script> script,
       if (!IsSharedFunctionInfo(constants->get(i))) continue;
       Tagged<SharedFunctionInfo> inner_sfi =
           Cast<SharedFunctionInfo>(constants->get(i));
-      // See if there is a mapping from this function's start position to a
+      // See if there is a mapping from this function's start position to an
       // unchanged function's id.
       auto unchanged_it =
           start_position_to_unchanged_id.find(inner_sfi->StartPosition());
