@@ -438,6 +438,15 @@
                 'mksnapshot_flags': ['--code-comments'],
               },
             }],
+            ['v8_enable_concurrent_mksnapshot == 1', {
+              'variables': {
+                'mksnapshot_flags': [
+                  '--concurrent-builtin-generation',
+                  # Use all the cores for concurrent builtin generation.
+                  '--concurrent-turbofan-max-threads=0',
+                ],
+              },
+            }],
             ['v8_enable_snapshot_native_code_counters', {
               'variables': {
                 'mksnapshot_flags': ['--native-code-counters'],
@@ -468,6 +477,7 @@
             'v8_compiler_for_mksnapshot',
             'v8_initializers',
             'v8_libplatform',
+            'v8_abseil',
           ]
         }, {
           'dependencies': [
@@ -480,6 +490,7 @@
             'v8_compiler_for_mksnapshot',
             'v8_initializers',
             'v8_libplatform',
+            'v8_abseil',
           ]
         }],
         ['OS=="win" and clang==1', {
@@ -1246,6 +1257,7 @@
       'dependencies': [
         'v8_shared_internal_headers',
         'v8_libbase',
+        'v8_abseil',
       ],
       'defines!': [
         '_HAS_EXCEPTIONS=0',
@@ -1299,6 +1311,7 @@
 
       'dependencies': [
         'v8_headers',
+        'v8_abseil',
       ],
 
       'conditions': [
@@ -1547,6 +1560,7 @@
       'toolsets': ['host', 'target'],
       'dependencies': [
         'v8_libbase',
+        'v8_abseil',
       ],
       'sources': [
         '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"v8_libplatform.*?sources = ")',
@@ -1617,7 +1631,8 @@
         'BUILDING_V8_SHARED=1',
       ],
       'dependencies': [
-        "v8_libbase",
+        'v8_libbase',
+        'v8_abseil',
         # "build/win:default_exe_manifest",
       ],
       'sources': [
@@ -1680,6 +1695,7 @@
       'type': 'executable',
       'dependencies': [
         'torque_base',
+        'v8_abseil',
         # "build/win:default_exe_manifest",
       ],
       'conditions': [
@@ -1755,6 +1771,7 @@
         'v8_libbase',
         # "build/win:default_exe_manifest",
         'v8_maybe_icu',
+        'v8_abseil',
       ],
       'conditions': [
         ['want_separate_host_toolset', {
@@ -2003,6 +2020,8 @@
           '<(V8_ROOT)/src/objects/abstract-code-inl.h',
           '<(V8_ROOT)/src/objects/instruction-stream.h',
           '<(V8_ROOT)/src/objects/instruction-stream-inl.h',
+          '<(V8_ROOT)/src/objects/casting.h',
+          '<(V8_ROOT)/src/objects/casting-inl.h',
           '<(V8_ROOT)/src/objects/code.h',
           '<(V8_ROOT)/src/objects/code-inl.h',
           '<(V8_ROOT)/src/objects/data-handler.h',
@@ -2168,6 +2187,9 @@
         'include_dirs': [
           '<(ABSEIL_ROOT)',
         ],
+        'xcode_settings': {
+          'OTHER_LDFLAGS': ['-framework CoreFoundation'],
+        },
       },
       'include_dirs': [
         '<(ABSEIL_ROOT)',
